@@ -42,6 +42,8 @@ function gma_criar_tabelas() {
         FOREIGN KEY (categoria_id) REFERENCES $tabela_categorias(id) ON DELETE SET NULL
     ) $charset_collate;";
 
+  
+  
     // SQL para tabela de materiais
     $sql_materiais = "CREATE TABLE $tabela_materiais (
         id mediumint(9) NOT NULL AUTO_INCREMENT,
@@ -126,22 +128,17 @@ function gma_criar_tabelas() {
         FOREIGN KEY (modificado_por) REFERENCES {$wpdb->users}(ID)
     ) $charset_collate;";
 
-    // SQL para tabela de licenças (versão unificada e atualizada)
-    $sql_licencas = "CREATE TABLE $tabela_licencas (
-        id mediumint(9) NOT NULL AUTO_INCREMENT,
-        codigo_licenca varchar(32) NOT NULL,
-        order_id bigint(20) DEFAULT NULL,
-        user_id bigint(20) DEFAULT NULL,
-        tipo_licenca varchar(10) NOT NULL DEFAULT 'teste',
-        data_criacao datetime DEFAULT CURRENT_TIMESTAMP,
+     $sql_licencas = "CREATE TABLE IF NOT EXISTS {$wpdb->prefix}gma_licencas (
+        id bigint(20) NOT NULL AUTO_INCREMENT,
+        codigo_licenca varchar(255) NOT NULL,
+        status varchar(50) NOT NULL DEFAULT 'inativo',
         data_ativacao datetime DEFAULT NULL,
         data_expiracao datetime DEFAULT NULL,
-        site_url varchar(255) DEFAULT NULL,
-        status varchar(20) DEFAULT 'inativo',
+        site_url varchar(255) NOT NULL,
+        tipo_licenca varchar(50) NOT NULL,
         PRIMARY KEY (id),
         UNIQUE KEY codigo_licenca (codigo_licenca)
     ) $charset_collate;";
-
     require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
     
     // Criar todas as tabelas
@@ -155,6 +152,8 @@ function gma_criar_tabelas() {
     dbDelta($sql_pastas);
     dbDelta($sql_versoes);
     dbDelta($sql_licencas);
+  
+  
 }
 
 /**
