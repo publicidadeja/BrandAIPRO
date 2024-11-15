@@ -129,16 +129,16 @@ function gma_criar_tabelas() {
     ) $charset_collate;";
 
      $sql_licencas = "CREATE TABLE IF NOT EXISTS {$wpdb->prefix}gma_licencas (
-        id bigint(20) NOT NULL AUTO_INCREMENT,
-        codigo_licenca varchar(255) NOT NULL,
-        status varchar(50) NOT NULL DEFAULT 'inativo',
-        data_ativacao datetime DEFAULT NULL,
-        data_expiracao datetime DEFAULT NULL,
-        site_url varchar(255) NOT NULL,
-        tipo_licenca varchar(50) NOT NULL,
-        PRIMARY KEY (id),
-        UNIQUE KEY codigo_licenca (codigo_licenca)
-    ) $charset_collate;";
+    id bigint(20) NOT NULL AUTO_INCREMENT,
+    codigo_licenca varchar(255) NOT NULL,
+    status varchar(50) NOT NULL DEFAULT 'inativo',
+    data_ativacao datetime DEFAULT NULL,
+    data_expiracao datetime DEFAULT NULL,
+    site_url varchar(255) NOT NULL,
+    tipo_licenca varchar(50) NOT NULL,
+    PRIMARY KEY (id),
+    UNIQUE KEY codigo_licenca (codigo_licenca)
+) $charset_collate;";
     require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
     
     // Criar todas as tabelas
