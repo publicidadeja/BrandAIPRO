@@ -27,6 +27,8 @@ if (!defined('ABSPATH')) {
 define('GMA_VERSION', '1.2.1');
 define('GMA_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('GMA_PLUGIN_URL', plugin_dir_url(__FILE__));
+define('GMA_LICENSE_API_URL', 'https://licenca.publicidadeja.com.br/api/verificar.php');
+define('GMA_PLUGIN_SLUG', 'brandaipro');
 
 // Incluir arquivos necessários
 require_once GMA_PLUGIN_DIR . 'includes/database.php';
@@ -735,56 +737,64 @@ function gma_validar_licenca($codigo) {
 // Adicione ao arquivo gerenciador-marketing-avancado.php
 
 function gma_verificar_licenca_ativa() {
-    $license_key = get_option('gma_license_key');
-    if (!$license_key) return false;
-
-    $response = wp_remote_post('https://licenca.publicidadeja.com.br/api/', [
-        'headers' => [
-            'Content-Type' => 'application/json',
-            'X-API-Key' => 'sua_chave_api'
-        ],
-        'body' => json_encode([
-            'action' => 'verify',
-            'license_key' => $license_key,
-            'domain' => get_site_url()
-        ])
-    ]);
-
-    if (is_wp_error($response)) return false;
-
-    $body = json_decode(wp_remote_retrieve_body($response));
-    return !empty($body->valid);
-}
-
-function gma_verificar_status_licenca() {
-    $codigo_licenca = get_option('gma_codigo_licenca');
-    $status_licenca = get_option('gma_licenca_status');
-    $ultima_verificacao = get_option('gma_ultima_verificacao_licenca');
-    $agora = time();
+    $licenca = get_option('gma_license_key');
+    $dominio = $_SERVER['HTTP_HOST'];
     
-    // Verifica a cada 24 horas
-    if ($ultima_verificacao && ($agora - $ultima_verificacao) < DAY_IN_SECONDS) {
-        return $status_licenca === 'valida';
+    if (empty($licenca)) {
+        return false;
     }
+
+    // Cache da verificação para evitar muitas requisições
+    $cache_key = 'gma_license_check_' . md5($licenca . $dominio);
+    $cached_response = get_transient($cache_key);
     
-    $response = wp_remote_post('https://seuservidor.com/verificar-licenca', array(
+    if ($cached_response !== false) {
+        return $cached_response === 'valid';
+    }
+
+    // Preparar dados para a requisição
+    $params = array(
         'body' => array(
-            'codigo_licenca' => $codigo_licenca,
-            'site_url' => get_site_url()
+            'codigo_licenca' => $licenca,
+            'site_url' => $dominio,
+            'action' => 'verificar'
         )
-    ));
-    
+    );
+
+    // Fazer requisição para a API
+    $response = wp_remote_post(GMA_LICENSE_API_URL, $params);
+
     if (is_wp_error($response)) {
         return false;
     }
-    
+
     $body = wp_remote_retrieve_body($response);
     $data = json_decode($body);
+
+    // Armazenar resultado em cache por 24 horas
+    $is_valid = isset($data->status) && $data->status === 'ativo';
+    set_transient($cache_key, $is_valid ? 'valid' : 'invalid', DAY_IN_SECONDS);
+
+    return $is_valid;
+}
+
+// Em gerenciador-marketing-avancado.php
+function gma_verificar_status_licenca() {
+    $codigo_licenca = get_option('gma_codigo_licenca');
+    $ultima_verificacao = get_option('gma_ultima_verificacao_licenca');
     
-    update_option('gma_licenca_status', $data->status);
-    update_option('gma_ultima_verificacao_licenca', $agora);
+    // Verificar a cada 24 horas
+    if (time() - $ultima_verificacao < DAY_IN_SECONDS) {
+        return get_option('gma_licenca_status') === 'valid';
+    }
+
+    $api = new GMA_License_API();
+    $resultado = $api->verify_license($codigo_licenca);
     
-    return $data->status === 'valida';
+    update_option('gma_ultima_verificacao_licenca', time());
+    update_option('gma_licenca_status', $resultado->valid ? 'valid' : 'invalid');
+    
+    return $resultado->valid;
 }
 
 add_action('wp_loaded', 'gma_verificar_status_licenca');
@@ -801,42 +811,81 @@ function gma_exibir_aviso_licenca() {
 
 add_action('admin_notices', 'gma_exibir_aviso_licenca');
 
+// Atualizar a função de verificação remota
 function gma_verificar_licenca_remota($codigo_licenca) {
-    // URL do seu servidor de licenças
-    $api_url = 'https://api.publicidadeja.com.br/licencas/verificar';
+    $api_url = 'https://licenca.publicidadeja.com.br/api/verify';
     
-    // Dados do site
-    $site_url = get_site_url();
-    
-    // Faz a requisição para o servidor de licenças
     $response = wp_remote_post($api_url, array(
         'timeout' => 15,
-        'body' => array(
-            'codigo_licenca' => $codigo_licenca,
-            'site_url' => $site_url,
-            'produto' => 'brandaipro'
-        )
+        'headers' => array(
+            'Content-Type' => 'application/json',
+            'X-API-Key' => 'sua_chave_api_secreta'
+        ),
+        'body' => json_encode(array(
+            'license_key' => $codigo_licenca,
+            'site_url' => get_site_url(),
+            'product' => 'brandaipro',
+            'version' => GMA_VERSION
+        ))
     ));
 
-    // Verifica se houve erro na requisição
     if (is_wp_error($response)) {
-        error_log('Erro ao verificar licença: ' . $response->get_error_message());
+        error_log('Erro na verificação de licença: ' . $response->get_error_message());
         return false;
     }
 
-    // Obtém o corpo da resposta
+    $body = json_decode(wp_remote_retrieve_body($response));
+    return !empty($body->valid);
+}
+
+function gma_handle_license_error($error) {
+    error_log('Erro de licença BrandAI: ' . $error);
+    set_transient('gma_license_error', $error, HOUR_IN_SECONDS);
+    
+    add_action('admin_notices', function() {
+        $error = get_transient('gma_license_error');
+        if ($error) {
+            echo '<div class="notice notice-error"><p>' . esc_html($error) . '</p></div>';
+            delete_transient('gma_license_error');
+        }
+    });
+}
+
+function gma_ativar_licenca() {
+    if (!isset($_POST['gma_licenca_nonce']) || 
+        !wp_verify_nonce($_POST['gma_licenca_nonce'], 'gma_ativar_licenca')) {
+        wp_die('Ação não autorizada');
+    }
+
+    $codigo_licenca = sanitize_text_field($_POST['codigo_licenca']);
+    $dominio = $_SERVER['HTTP_HOST'];
+
+    // Preparar dados para a requisição
+    $params = array(
+        'body' => array(
+            'codigo_licenca' => $codigo_licenca,
+            'site_url' => $dominio,
+            'action' => 'ativar'
+        )
+    );
+
+    // Fazer requisição para a API
+    $response = wp_remote_post(GMA_LICENSE_API_URL, $params);
+
+    if (is_wp_error($response)) {
+        wp_redirect(admin_url('admin.php?page=gma-licenca&message=Erro ao conectar com servidor de licenças&type=error'));
+        exit;
+    }
+
     $body = wp_remote_retrieve_body($response);
     $data = json_decode($body);
 
-    // Verifica se a resposta é válida
-    if (!$data || !isset($data->valid)) {
-        error_log('Resposta inválida do servidor de licenças');
-        return false;
+    if (isset($data->status) && $data->status === 'ativo') {
+        update_option('gma_license_key', $codigo_licenca);
+        wp_redirect(admin_url('admin.php?page=gma-licenca&message=Licença ativada com sucesso!&type=success'));
+    } else {
+        wp_redirect(admin_url('admin.php?page=gma-licenca&message=Licença inválida ou já em uso&type=error'));
     }
-
-    // Atualiza o status da licença localmente
-    update_option('gma_license_status', $data->valid ? 'valid' : 'invalid');
-    update_option('gma_last_license_check', time());
-
-    return $data->valid;
+    exit;
 }
+add_action('admin_post_gma_ativar_licenca', 'gma_ativar_licenca');
