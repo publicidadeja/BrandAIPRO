@@ -786,3 +786,43 @@ function gma_exibir_aviso_licenca() {
 }
 
 add_action('admin_notices', 'gma_exibir_aviso_licenca');
+
+function gma_verificar_licenca_remota($codigo_licenca) {
+    // URL do seu servidor de licenças
+    $api_url = 'https://api.publicidadeja.com.br/licencas/verificar';
+    
+    // Dados do site
+    $site_url = get_site_url();
+    
+    // Faz a requisição para o servidor de licenças
+    $response = wp_remote_post($api_url, array(
+        'timeout' => 15,
+        'body' => array(
+            'codigo_licenca' => $codigo_licenca,
+            'site_url' => $site_url,
+            'produto' => 'brandaipro'
+        )
+    ));
+
+    // Verifica se houve erro na requisição
+    if (is_wp_error($response)) {
+        error_log('Erro ao verificar licença: ' . $response->get_error_message());
+        return false;
+    }
+
+    // Obtém o corpo da resposta
+    $body = wp_remote_retrieve_body($response);
+    $data = json_decode($body);
+
+    // Verifica se a resposta é válida
+    if (!$data || !isset($data->valid)) {
+        error_log('Resposta inválida do servidor de licenças');
+        return false;
+    }
+
+    // Atualiza o status da licença localmente
+    update_option('gma_license_status', $data->valid ? 'valid' : 'invalid');
+    update_option('gma_last_license_check', time());
+
+    return $data->valid;
+}
