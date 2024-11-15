@@ -36,30 +36,26 @@ $licenca_ativa = gma_verificar_licenca_ativa();
 
         <div class="gma-activation-card">
             <form method="post" action="<?php echo admin_url('admin-post.php'); ?>" class="gma-activation-form">
-                <?php wp_nonce_field('gma_ativar_licenca', 'gma_licenca_nonce'); ?>
-                <input type="hidden" name="action" value="gma_ativar_licenca">
-
-                <div class="gma-form-group">
-                    <label for="codigo_licenca">
-                        <i class="dashicons dashicons-key"></i> Código de Licença
-                    </label>
-                    <input type="text" 
-                           name="codigo_licenca" 
-                           id="codigo_licenca" 
-                           class="gma-input"
-                           placeholder="XXXX-XXXX-XXXX-XXXX"
-                           pattern="[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}"
-                           title="Digite um código de licença válido no formato XXXX-XXXX-XXXX-XXXX"
-                           required>
-                </div>
-
-                <div class="gma-form-actions">
-                    <button type="submit" class="gma-button primary">
-                        <i class="dashicons dashicons-yes"></i> 
-                        <?php echo $licenca_atual ? 'Atualizar Licença' : 'Ativar Licença'; ?>
-                    </button>
-                </div>
-            </form>
+    <?php wp_nonce_field('gma_ativar_licenca', 'gma_licenca_nonce'); ?>
+    <input type="hidden" name="action" value="gma_ativar_licenca">
+    
+    <div class="gma-form-group">
+        <label for="codigo_licenca">
+            <i class="dashicons dashicons-key"></i> Código de Licença
+        </label>
+        <input type="text" 
+               name="codigo_licenca" 
+               id="codigo_licenca" 
+               class="gma-input"
+               value="<?php echo esc_attr(get_option('gma_license_key')); ?>"
+               placeholder="XXXX-XXXX-XXXX-XXXX"
+               required>
+    </div>
+    
+    <button type="submit" class="button button-primary">
+        <i class="dashicons dashicons-yes"></i> Ativar Licença
+    </button>
+</form>
 
             <?php if ($licenca_atual && $licenca_ativa): ?>
             <div class="gma-form-actions" style="margin-top: 20px;">
