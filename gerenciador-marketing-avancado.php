@@ -735,12 +735,26 @@ function gma_validar_licenca($codigo) {
 // Adicione ao arquivo gerenciador-marketing-avancado.php
 
 function gma_verificar_licenca_ativa() {
-    $codigo_licenca = get_option('gma_codigo_licenca');
-    $status_licenca = get_option('gma_licenca_status');
-    
-    return !empty($codigo_licenca) && $status_licenca === 'valida';
-}
+    $license_key = get_option('gma_license_key');
+    if (!$license_key) return false;
 
+    $response = wp_remote_post('https://licenca.publicidadeja.com.br/api/', [
+        'headers' => [
+            'Content-Type' => 'application/json',
+            'X-API-Key' => 'sua_chave_api'
+        ],
+        'body' => json_encode([
+            'action' => 'verify',
+            'license_key' => $license_key,
+            'domain' => get_site_url()
+        ])
+    ]);
+
+    if (is_wp_error($response)) return false;
+
+    $body = json_decode(wp_remote_retrieve_body($response));
+    return !empty($body->valid);
+}
 
 function gma_verificar_status_licenca() {
     $codigo_licenca = get_option('gma_codigo_licenca');
