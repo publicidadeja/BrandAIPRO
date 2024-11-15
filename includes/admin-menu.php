@@ -365,16 +365,21 @@ function gma_pagina_calendario() {
 
 function gma_adicionar_menu_licenca() {
     add_submenu_page(
-        'gma-dashboard',
-        'Licença',
-        'Licença',
+        'gma-plugin', // Altere de 'gma-dashboard' para 'gma-plugin'
+        'Ativação',   // Título da página
+        'Ativação',   // Nome no menu
         'manage_options',
-        'gma-licenca',
-        'gma_pagina_licenca'
+        'gma-ativacao',
+        'gma_pagina_ativacao'
     );
 }
 
 add_action('admin_menu', 'gma_adicionar_menu_licenca');
+
+// Função que renderiza a página de ativação
+function gma_pagina_ativacao() {
+    include GMA_PLUGIN_DIR . 'templates/pagina-ativacao.php';
+}
 
 function gma_pagina_licenca() {
     if (isset($_POST['gma_codigo_licenca'])) {
@@ -408,3 +413,4 @@ function gma_pagina_licenca() {
     </div>
     <?php
 }
+
