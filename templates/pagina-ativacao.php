@@ -1,5 +1,8 @@
 <?php
 if (!defined('ABSPATH')) exit;
+
+$licenca_atual = get_option('gma_license_key');
+$licenca_ativa = gma_verificar_licenca_ativa();
 ?>
 
 <div class="gma-activation-wrap">
@@ -14,6 +17,20 @@ if (!defined('ABSPATH')) exit;
             echo '<div class="gma-notice ' . $message_class . '">';
             echo '<p>' . esc_html($_GET['message']) . '</p>';
             echo '</div>';
+        }
+
+        // Exibir status da licença atual
+        if ($licenca_atual) {
+            if ($licenca_ativa) {
+                echo '<div class="gma-notice gma-notice-success">';
+                echo '<p>✅ Licença ativa e funcionando!</p>';
+                echo '<p>Código: ' . esc_html($licenca_atual) . '</p>';
+                echo '</div>';
+            } else {
+                echo '<div class="gma-notice gma-notice-error">';
+                echo '<p>❌ Licença inválida ou expirada</p>';
+                echo '</div>';
+            }
         }
         ?>
 
@@ -31,15 +48,31 @@ if (!defined('ABSPATH')) exit;
                            id="codigo_licenca" 
                            class="gma-input"
                            placeholder="XXXX-XXXX-XXXX-XXXX"
+                           pattern="[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}"
+                           title="Digite um código de licença válido no formato XXXX-XXXX-XXXX-XXXX"
                            required>
                 </div>
 
                 <div class="gma-form-actions">
                     <button type="submit" class="gma-button primary">
-                        <i class="dashicons dashicons-yes"></i> Ativar Licença
+                        <i class="dashicons dashicons-yes"></i> 
+                        <?php echo $licenca_atual ? 'Atualizar Licença' : 'Ativar Licença'; ?>
                     </button>
                 </div>
             </form>
+
+            <?php if ($licenca_atual && $licenca_ativa): ?>
+            <div class="gma-form-actions" style="margin-top: 20px;">
+                <form method="post" action="<?php echo admin_url('admin-post.php'); ?>">
+                    <?php wp_nonce_field('gma_desativar_licenca', 'gma_licenca_nonce'); ?>
+                    <input type="hidden" name="action" value="gma_desativar_licenca">
+                    <button type="submit" class="gma-button secondary" 
+                            onclick="return confirm('Tem certeza que deseja desativar a licença?');">
+                        <i class="dashicons dashicons-no"></i> Desativar Licença
+                    </button>
+                </form>
+            </div>
+            <?php endif; ?>
         </div>
     </div>
 </div>
@@ -130,6 +163,11 @@ if (!defined('ABSPATH')) exit;
 
 .gma-button.primary {
     background: var(--primary-color);
+    color: white;
+}
+
+.gma-button.secondary {
+    background: var(--error-color);
     color: white;
 }
 
