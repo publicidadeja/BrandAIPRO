@@ -8,18 +8,18 @@ if (!defined('ABSPATH')) {
 add_action('admin_menu', 'gma_criar_menu_admin');
 
 function gma_criar_menu_admin() {
-    // Adicionando a página principal do plugin
+    // Menu principal
     add_menu_page(
-        'Gerenciador de Marketing Avançado', // Título da página
-        'BrandAI', // Nome do menu
-        'manage_options', // Capacidade de acesso
-        'gma-plugin', // Slug da página
-        'gma_pagina_principal', // Função a ser chamada
-        'dashicons-image-filter', // Ícone do menu
-        30 // Posição do menu
+        'Gerenciador de Marketing Avançado',
+        'BrandAI',
+        'manage_options',
+        'gma-plugin',
+        'gma_pagina_principal',
+        'dashicons-image-filter',
+        30
     );
 
-    // Criando submenus
+    // Submenus
     $submenus = array(
         array('Campanhas', 'gma-campanhas', 'gma_pagina_campanhas'),
         array('Editar Campanha', 'gma-editar-campanha', 'gma_pagina_editar_campanha'),
@@ -27,8 +27,9 @@ function gma_criar_menu_admin() {
         array('Novo Material', 'gma-novo-material', 'gma_pagina_novo_material'),
         array('Editar Material', 'gma-editar-material', 'gma_pagina_editar_material'),
         array('Categorias', 'gma-criar-categoria', 'gma_pagina_criar_categoria'),
-        array('Calendário', 'gma-calendario', 'gma_pagina_calendario'), // Nova entrada para o calendário
+        array('Calendário', 'gma-calendario', 'gma_pagina_calendario'),
         array('Relatório', 'gma-relatorio-campanhas', 'gma_pagina_relatorio_campanhas'),
+        array('Ativação', 'gma-ativacao', 'gma_pagina_ativacao')
     );
 
     foreach ($submenus as $submenu) {
@@ -361,20 +362,7 @@ function gma_pagina_calendario() {
 }
 
 
-// Adicione ao arquivo admin-menu.php
 
-function gma_adicionar_menu_licenca() {
-    add_submenu_page(
-        'gma-plugin', // Altere de 'gma-dashboard' para 'gma-plugin'
-        'Ativação',   // Título da página
-        'Ativação',   // Nome no menu
-        'manage_options',
-        'gma-ativacao',
-        'gma_pagina_ativacao'
-    );
-}
-
-add_action('admin_menu', 'gma_adicionar_menu_licenca');
 
 // Função que renderiza a página de ativação
 function gma_pagina_ativacao() {
