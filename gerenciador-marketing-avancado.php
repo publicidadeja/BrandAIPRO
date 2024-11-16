@@ -30,6 +30,8 @@ define('GMA_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('GMA_LICENSE_API_URL', 'https://licenca.publicidadeja.com.br/api');
 define('GMA_LICENSE_VERIFY_ENDPOINT', GMA_LICENSE_API_URL . '/verificar.php');
 define('GMA_PLUGIN_SLUG', 'brandaipro');
+define('GMA_LICENSE_CHECK_INTERVAL', DAY_IN_SECONDS);
+define('GMA_LICENSE_CACHE_KEY', 'gma_license_status');
 
 // Incluir arquivos necessários
 require_once GMA_PLUGIN_DIR . 'includes/database.php';
@@ -735,7 +737,7 @@ function gma_verificar_licenca_ativa() {
     $response = wp_remote_post('https://licenca.publicidadeja.com.br/api/', array(
         'timeout' => 15,
         'headers' => array(
-            'X-API-KEY' => 'SUA_API_KEY_AQUI',
+            'X-API-KEY' => '@Speaker120123',
             'Content-Type' => 'application/x-www-form-urlencoded'
         ),
         'body' => array(
@@ -825,16 +827,8 @@ function gma_verificar_licenca_remota($codigo_licenca) {
 }
 
 function gma_handle_license_error($error) {
-    error_log('Erro de licença BrandAI: ' . $error);
+    error_log('[BrandAI] ' . $error);
     set_transient('gma_license_error', $error, HOUR_IN_SECONDS);
-    
-    add_action('admin_notices', function() {
-        $error = get_transient('gma_license_error');
-        if ($error) {
-            echo '<div class="notice notice-error"><p>' . esc_html($error) . '</p></div>';
-            delete_transient('gma_license_error');
-        }
-    });
 }
 
 function gma_ativar_licenca() {
@@ -879,7 +873,8 @@ function gma_handle_ativacao_licenca() {
     }
 
     if (!isset($_POST['gma_licenca_nonce']) || !wp_verify_nonce($_POST['gma_licenca_nonce'], 'gma_ativar_licenca')) {
-        wp_die('Verificação de segurança falhou.');
+        wp_die('Verificação dfunction gma_verificar_licenca_ativa() {
+e segurança falhou.');
     }
 
     $codigo_licenca = sanitize_text_field($_POST['codigo_licenca']);
@@ -893,3 +888,55 @@ function gma_handle_ativacao_licenca() {
     exit;
 }
 add_action('admin_post_gma_ativar_licenca', 'gma_handle_ativacao_licenca');
+
+add_action('init', 'gma_load_plugin_textdomain');
+
+function gma_load_plugin_textdomain() {
+    load_plugin_textdomain('gerenciador-marketing-avancado', false, dirname(plugin_basename(__FILE__)) . '/languages');
+}
+
+add_action('admin_init', 'gma_debug_license');
+
+function gma_debug_license() {
+    if (isset($_GET['debug_license']) && current_user_can('manage_options')) {
+        $licenca = get_option('gma_license_key');
+        error_log("Licença atual: " . $licenca);
+        error_log("Status da licença: " . (gma_verificar_licenca_ativa() ? 'ativa' : 'inativa'));
+    }
+}
+
+add_action('admin_init', function() {
+    $response = wp_remote_post(GMA_LICENSE_API_URL . '/verificar.php', array(
+        'body' => array(
+            'codigo_licenca' => get_option('gma_codigo_licenca'),
+            'site_url' => $_SERVER['HTTP_HOST']
+        )
+    ));
+    
+    if (is_wp_error($response)) {
+        error_log('Erro de licença: ' . $response->get_error_message());
+    }
+});
+
+function gma_verificar_licenca($codigo_licenca) {
+    $cache_key = 'gma_license_status_' . md5($codigo_licenca);
+    $cached = get_transient($cache_key);
+    
+    if ($cached !== false) {
+        return $cached;
+    }
+
+    $response = wp_remote_post(GMA_LICENSE_API_URL . '/verificar', [
+        'body' => [
+            'licenca' => $codigo_licenca,
+            'site_url' => get_site_url()
+        ],
+        'timeout' => 15
+    ]);
+
+    $status = !is_wp_error($response) && wp_remote_retrieve_response_code($response) === 200;
+    set_transient($cache_key, $status, HOUR_IN_SECONDS);
+    
+    return $status;
+}
+
