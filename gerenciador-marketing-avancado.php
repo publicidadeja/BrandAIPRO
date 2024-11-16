@@ -921,22 +921,40 @@ add_action('admin_init', function() {
 function gma_verificar_licenca($codigo_licenca) {
     $cache_key = 'gma_license_status_' . md5($codigo_licenca);
     $cached = get_transient($cache_key);
-    
+
     if ($cached !== false) {
         return $cached;
     }
 
-    $response = wp_remote_post(GMA_LICENSE_API_URL . '/verificar', [
-        'body' => [
-            'licenca' => $codigo_licenca,
-            'site_url' => get_site_url()
-        ],
+    $response = wp_remote_post(GMA_LICENSE_VERIFY_ENDPOINT, array(
+        'method' => 'POST',
+        'headers' => array(
+            'Content-Type' => 'application/json',
+            'Authorization' => 'Bearer ' . get_option('gma_api_token') // Obtenha o token da opção
+        ),
+        'body' => json_encode(array(
+            'codigo_licenca' => $codigo_licenca,
+            'site_url' => get_site_url(),
+            'action' => 'verificar',
+            'produto' => GMA_PLUGIN_SLUG
+        )),
         'timeout' => 15
-    ]);
+    ));
 
-    $status = !is_wp_error($response) && wp_remote_retrieve_response_code($response) === 200;
+    if (is_wp_error($response)) {
+        error_log('Erro na verificação de licença: ' . $response->get_error_message());
+        return false; // ou lance uma exceção
+    }
+
+    $body = json_decode(wp_remote_retrieve_body($response));
+    if (isset($body->success) && $body->success && isset($body->valid) && $body->valid) {
+        $status = true;
+    } else {
+        $status = false;
+        error_log('Resposta da API de licença inválida: ' . json_encode($body));
+    }
+
     set_transient($cache_key, $status, HOUR_IN_SECONDS);
-    
     return $status;
 }
 
